@@ -444,6 +444,7 @@
     </div>
 
     <div id="view-boat" class="view-pane" style="display:none;">
+      <button id="printBoatBtn" class="print-btn">🖨️ Print / Save as PDF</button>
       <div class="filters" id="filters"></div>
       <div style="overflow-x:auto;">
         <table id="schedTable">
@@ -653,7 +654,7 @@ function validate(p){
 let currentSchedules = null;
 let currentLaunchLog = null;
 let currentParams = null;
-let currentFilter = 'all';
+let selectedBoats = new Set(); // indices of boats currently checked in the By Boat filter
 let currentView = 'timeline';
 
 // Field ids <-> short query-string keys, for shareable per-event links.
@@ -679,7 +680,7 @@ function generateSchedule(){
   currentSchedules = result.boatSchedules;
   currentLaunchLog = result.launchLog;
   currentParams = p;
-  currentFilter = 'all';
+  selectedBoats = new Set(result.boatSchedules.map((_, i) => i));
   currentView = 'timeline';
   renderResults(p);
   return true;
@@ -772,21 +773,40 @@ function renderResults(p){
   `;
   window.__capacityFlag = anyWaited;
 
-  // filters
+  // filters — each boat toggles independently; "All boats" is a select-all/none shortcut
   const filtersDiv = document.getElementById('filters');
-  let filterHtml = `<button data-boat="all" class="active">All boats</button>`;
+  let filterHtml = `<button data-boat="all">All boats</button>`;
   for(let i=0;i<currentSchedules.length;i++){
     filterHtml += `<button data-boat="${i}"><span class="boat-tag" style="background:${palette[i%palette.length]}"></span>Boat ${i+1}</button>`;
   }
   filtersDiv.innerHTML = filterHtml;
-  filtersDiv.querySelectorAll('button').forEach(btn=>{
+
+  function syncFilterButtons(){
+    filtersDiv.querySelectorAll('button[data-boat]').forEach(b=>{
+      const val = b.getAttribute('data-boat');
+      const active = val==='all'
+        ? selectedBoats.size === currentSchedules.length
+        : selectedBoats.has(Number(val));
+      b.classList.toggle('active', active);
+    });
+  }
+
+  filtersDiv.querySelectorAll('button[data-boat]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      filtersDiv.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      currentFilter = btn.getAttribute('data-boat');
+      const val = btn.getAttribute('data-boat');
+      if(val==='all'){
+        selectedBoats = selectedBoats.size === currentSchedules.length
+          ? new Set()
+          : new Set(currentSchedules.map((_,i)=>i));
+      } else {
+        const idx = Number(val);
+        if(selectedBoats.has(idx)) selectedBoats.delete(idx); else selectedBoats.add(idx);
+      }
+      syncFilterButtons();
       renderTable();
     });
   });
+  syncFilterButtons();
 
   renderTable();
   renderLog();
@@ -808,7 +828,7 @@ function renderTable(){
   const tbody = document.getElementById('schedBody');
   let rows = [];
   currentSchedules.forEach((sched, boatIdx)=>{
-    if(currentFilter!=='all' && String(boatIdx)!==currentFilter) return;
+    if(!selectedBoats.has(boatIdx)) return;
     sched.forEach(trip=>{
       rows.push({boatIdx, ...trip});
     });
@@ -914,6 +934,63 @@ document.getElementById('printLogBtn').addEventListener('click', ()=>{
       </thead>
       <tbody>${bodyRows}</tbody>
     </table>
+    <div class="foot">Generated ${generatedAt}</div>
+  `;
+
+  window.print();
+});
+
+document.getElementById('printBoatBtn').addEventListener('click', ()=>{
+  const p = currentParams;
+  const boatIdxs = [...selectedBoats].sort((a,b)=>a-b);
+
+  if(boatIdxs.length===0){
+    alert('Select at least one boat to print.');
+    return;
+  }
+
+  const generatedAt = new Date().toLocaleString([], {dateStyle:'medium', timeStyle:'short'});
+
+  const sections = boatIdxs.map((boatIdx, i)=>{
+    const color = palette[boatIdx % palette.length];
+    const trips = [...currentSchedules[boatIdx]].sort((a,b)=> a.dockDep - b.dockDep);
+
+    const bodyRows = trips.map(t=>{
+      const flags = (t.first ? ' &mdash; first' : '')
+        + (t.waited ? ' &mdash; wait' : '')
+        + (t.closing ? ' &mdash; closing pickup' : '');
+      return `<tr>
+        <td>${t.tripNum}</td>
+        <td>${toHHMM(t.dockDep)}</td>
+        <td>${toHHMM(t.sailDep)}</td>
+        <td>${toHHMM(t.sailArr)}</td>
+        <td>${toHHMM(t.dockArr)}${flags}</td>
+        <td>${t.pax}</td>
+      </tr>`;
+    }).join('');
+
+    const rowsOrEmpty = bodyRows || `<tr><td colspan="6" style="text-align:center;color:#555;">No trips scheduled.</td></tr>`;
+
+    return `
+      <div${i>0 ? ' style="page-break-before:always;"' : ''}>
+        <h1><span class="dot" style="background:${color}"></span>Boat ${boatIdx+1}</h1>
+        <div class="meta">
+          <b>Operating window:</b> ${toHHMM(p.start)}&ndash;${toHHMM(p.end)} &nbsp; | &nbsp;
+          <b>Trip duration:</b> ${p.T}&prime; &nbsp; | &nbsp;
+          <b>Passengers/boat:</b> ${p.pax}
+        </div>
+        <table>
+          <thead>
+            <tr><th>Trip</th><th>Dock Dep.</th><th>Sail Dep.</th><th>Sail Arr.</th><th>Dock Arr.</th><th>Pax</th></tr>
+          </thead>
+          <tbody>${rowsOrEmpty}</tbody>
+        </table>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('printArea').innerHTML = `
+    ${sections}
     <div class="foot">Generated ${generatedAt}</div>
   `;
 
