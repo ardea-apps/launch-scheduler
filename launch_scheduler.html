@@ -342,6 +342,10 @@
     #printArea .dot{
       display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;
     }
+    #printArea td.name-blank{
+      min-width:90px;
+      border-bottom:1px solid #000;
+    }
     #printArea .foot{margin-top:16px;font-size:10px;color:#555;}
     @page{margin:14mm;}
   }
@@ -900,20 +904,20 @@ document.getElementById('printLogBtn').addEventListener('click', ()=>{
 
   const bodyRows = rows.map((r,i)=>{
     const color = palette[r.boat % palette.length];
-    const dropCell = r.outbound ? `Boat ${r.boat+1} · trip ${r.outbound.tripNum}` : '— closing pickup —';
-    const pickCell = r.inbound ? `Boat ${r.boat+1} · trip ${r.inbound.tripNum}` : '— first run —';
-    const waitCell = r.inbound ? (r.waitMin>0 ? String(Math.round(r.waitMin)) : '0') : '—';
-    const nextPickupCell = r.outbound ? toHHMM(r.outbound.returnBy) : '—';
+    const boatCode = `B${r.boat+1}`;
+    const dropCell = r.outbound ? `Trip ${r.outbound.tripNum}` : '— closing pickup —';
+    const pickCell = r.inbound ? `Trip ${r.inbound.tripNum}` : '— first run —';
+    const exchangeTimeCell = toHHMM(r.dockArr - p.L); // time of the swap at the boat
     return `<tr>
       <td>${i+1}</td>
       <td>Launch ${r.launchIdx+1}</td>
       <td>${toHHMM(r.dockDep)}</td>
-      <td><span class="dot" style="background:${color}"></span>Boat ${r.boat+1}</td>
+      <td><span class="dot" style="background:${color}"></span>${boatCode}</td>
+      <td class="name-blank"></td>
       <td>${dropCell}</td>
+      <td>${exchangeTimeCell}</td>
       <td>${pickCell}</td>
-      <td>${waitCell}</td>
       <td>${toHHMM(r.dockArr)}</td>
-      <td>${nextPickupCell}</td>
     </tr>`;
   }).join('');
 
@@ -930,7 +934,7 @@ document.getElementById('printLogBtn').addEventListener('click', ()=>{
     </div>
     <table>
       <thead>
-        <tr><th>Round</th><th>Launch</th><th>Dock Dep.</th><th>Boat</th><th>Dropping off</th><th>Picking up</th><th>Wait (min)</th><th>Dock Arr.</th><th>Next pickup</th></tr>
+        <tr><th>Round</th><th>Launch</th><th>Dock Dep.</th><th>Boat Code</th><th>Boat Name</th><th>Dropping Off</th><th>Drop Off/Pick Up time</th><th>Picking Up</th><th>Dock Arr.</th></tr>
       </thead>
       <tbody>${bodyRows}</tbody>
     </table>
