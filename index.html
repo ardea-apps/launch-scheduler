@@ -1,1 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Launch &amp; Boat Dispatch Scheduler</title>
+<style>
+  :root{
+    --navy: #0e2233;
+    --navy-deep: #081722;
+    --dock: #d8cdb8;
+    --dock-line: #b8a985;
+    --buoy: #d1622f;
+    --buoy-dim: #a94e24;
+    --paper: #f6f2e9;
+    --ink: #14202a;
+    --mute: #5a6a75;
+    --good: #2f6b4f;
+    --warn: #a94e24;
+    --mono: 'JetBrains Mono','SFMono-Regular',Consolas,monospace;
+    --sans: 'Inter','Segoe UI',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    background:var(--navy-deep);
+    color:var(--ink);
+    min-height:100vh;
+  }
+  @font-face{ }
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 20px 80px;}
 
+  header.board{
+    background:linear-gradient(180deg,var(--navy) 0%, #123045 100%);
+    border-radius:14px;
+    padding:28px 30px 24px;
+    color:var(--paper);
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 20px 40px -20px rgba(0,0,0,.6);
+  }
+  header.board::after{
+    content:"";
+    position:absolute; right:-40px; top:-40px;
+    width:220px; height:220px; border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, rgba(209,98,47,.35), transparent 70%);
+  }
+  .eyebrow{
+    font-family:var(--mono);
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    font-size:11.5px;
+    color:#e8b48e;
+    margin:0 0 8px;
+  }
+  h1{
+    margin:0;
+    font-size:28px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  .sub{
+    margin:8px 0 0;
+    color:#b8c6cf;
+    font-size:14.5px;
+    max-width:640px;
+    line-height:1.5;
+  }
+
+  .panel{
+    background:var(--paper);
+    border-radius:14px;
+    margin-top:18px;
+    padding:26px 28px;
+    box-shadow:0 14px 30px -18px rgba(0,0,0,.5);
+  }
+  .panel h2{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    color:var(--buoy-dim);
+    margin:0 0 18px;
+    font-family:var(--mono);
+    display:flex;align-items:center;gap:10px;
+  }
+  .panel h2::after{content:"";flex:1;height:1px;background:var(--dock-line);}
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:16px 16px;
+  }
+  @media(max-width:980px){ .grid{grid-template-columns:repeat(3,1fr);} }
+  @media(max-width:640px){ .grid{grid-template-columns:repeat(2,1fr);} }
+
+  .field label{
+    display:block;
+    font-size:11px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    color:var(--mute);
+    margin-bottom:5px;
+  }
+  .field input, .field select{
+    width:100%;
+    padding:9px 10px;
+    border:1.5px solid var(--dock-line);
+    border-radius:8px;
+    background:#fff;
+    font-family:var(--mono);
+    font-size:13.5px;
+    color:var(--ink);
+  }
+  .field input:focus, .field select:focus{outline:none;border-color:var(--buoy);box-shadow:0 0 0 3px rgba(209,98,47,.15);}
+  .field .hint{font-size:10.5px;color:var(--mute);margin-top:4px;line-height:1.35;}
+
+  button#runBtn{
+    margin-top:22px;
+    background:var(--buoy);
+    color:#fff;
+    border:none;
+    padding:13px 26px;
+    border-radius:9px;
+    font-family:var(--sans);
+    font-weight:700;
+    font-size:14.5px;
+    letter-spacing:.02em;
+    cursor:pointer;
+    transition:background .15s, transform .1s;
+  }
+  button#runBtn:hover{background:var(--buoy-dim);}
+  button#runBtn:active{transform:translateY(1px);}
+
+  .link-btn{
+    margin-top:22px;
+    margin-left:10px;
+    background:#fff;
+    color:var(--navy);
+    border:1.5px solid var(--dock-line);
+    padding:11px 20px;
+    border-radius:9px;
+    font-family:var(--sans);
+    font-weight:600;
+    font-size:13.5px;
+    cursor:pointer;
+  }
+  .link-btn:hover{border-color:var(--navy);}
+  .copy-feedback{
+    margin-left:10px;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--good);
+    opacity:0;
+    transition:opacity .2s;
+  }
+  .copy-feedback.show{opacity:1;}
+
+  .errbox{
+    display:none;
+    margin-top:14px;
+    background:#fce8e0;
+    border:1px solid var(--warn);
+    color:var(--warn);
+    padding:10px 14px;
+    border-radius:8px;
+    font-size:13px;
+    font-family:var(--mono);
+  }
+
+  /* results */
+  #results{display:none;}
+
+  .summary-row{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:16px;
+    margin-bottom:8px;
+  }
+  @media(max-width:820px){ .summary-row{grid-template-columns:repeat(2,1fr);} }
+  .stat{
+    background:var(--navy);
+    color:var(--paper);
+    border-radius:10px;
+    padding:16px 18px;
+  }
+  .stat .n{
+    font-family:var(--mono);
+    font-size:26px;
+    font-weight:700;
+    color:#f0b98f;
+  }
+  .stat .l{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:#a9bac4;
+    margin-top:4px;
+  }
+
+  .filters{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin:20px 0 16px;
+  }
+  .filters button{
+    font-family:var(--mono);
+    font-size:12.5px;
+    padding:7px 14px;
+    border-radius:20px;
+    border:1.5px solid var(--dock-line);
+    background:#fff;
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .filters button.active{
+    background:var(--navy);
+    border-color:var(--navy);
+    color:#fff;
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-family:var(--mono);
+    font-size:13px;
+  }
+  thead th{
+    text-align:left;
+    font-family:var(--sans);
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    font-size:10.5px;
+    color:var(--mute);
+    padding:8px 10px;
+    border-bottom:2px solid var(--navy);
+  }
+  tbody td{
+    padding:9px 10px;
+    border-bottom:1px solid var(--dock-line);
+  }
+  tbody tr:hover{background:#efe7d5;}
+  .boat-tag{
+    display:inline-block;
+    width:9px;height:9px;
+    border-radius:50%;
+    margin-right:7px;
+    vertical-align:middle;
+  }
+  td.arr, td.dep{font-weight:600;}
+  .flag{
+    display:inline-block;
+    font-family:var(--sans);
+    font-size:10px;
+    padding:1px 7px;
+    border-radius:20px;
+    margin-left:8px;
+    vertical-align:middle;
+  }
+  .flag.wait{background:#fce8e0;color:var(--warn);}
+  .flag.first{background:#e2ecdf;color:var(--good);}
+  .flag.closing{background:#e6ecf2;color:#2f4b63;}
+
+  .note{
+    margin-top:18px;
+    font-size:12px;
+    color:var(--mute);
+    line-height:1.6;
+    border-top:1px solid var(--dock-line);
+    padding-top:14px;
+  }
+  .note b{color:var(--ink);}
+
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:16px;
+    margin-top:12px;
+    font-size:11.5px;
+    color:var(--mute);
+    font-family:var(--sans);
+  }
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend .sw{width:14px;height:9px;border-radius:2px;display:inline-block;}
+
+  #timelineSvgWrap svg{display:block;font-family:var(--mono);}
+  .tl-lane-label{font-family:var(--sans);font-size:11.5px;font-weight:600;fill:var(--ink);}
+  .tl-axis-label{font-family:var(--mono);font-size:10px;fill:var(--mute);}
+  .tl-round-label{font-family:var(--sans);font-size:9.5px;fill:#fff;font-weight:700;}
+
+  footer.credit{
+    text-align:center;
+    color:#4b5a63;
+    font-size:11px;
+    margin-top:24px;
+    font-family:var(--mono);
+  }
+
+  .print-btn{
+    background:var(--navy);
+    color:#fff;
+    border:none;
+    padding:9px 18px;
+    border-radius:8px;
+    font-family:var(--sans);
+    font-weight:600;
+    font-size:13px;
+    cursor:pointer;
+    margin-bottom:16px;
+  }
+  .print-btn:hover{background:#123045;}
+
+  #printArea{display:none;}
+
+  @media print{
+    body > *:not(#printArea){display:none !important;}
+    #printArea{
+      display:block !important;
+      font-family:var(--sans);
+      color:#000;
+      padding:0;
+    }
+    #printArea h1{font-size:19px;margin:0 0 4px;}
+    #printArea .meta{font-size:11.5px;color:#333;margin-bottom:14px;line-height:1.6;}
+    #printArea .meta b{color:#000;}
+    #printArea table{width:100%;border-collapse:collapse;font-size:11.5px;}
+    #printArea th{
+      text-align:left;
+      padding:6px 8px;
+      border-bottom:2px solid #000;
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+    }
+    #printArea td{
+      padding:6px 8px;
+      border-bottom:1px solid #999;
+    }
+    #printArea tr{page-break-inside:avoid;}
+    #printArea .dot{
+      display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;
+    }
+    #printArea td.name-blank{
+      min-width:90px;
+      border-bottom:1px solid #000;
+    }
+    #printArea .foot{margin-top:16px;font-size:10px;color:#555;}
+    @page{margin:14mm;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="board">
+    <p class="eyebrow">Dock &amp; Fleet Dispatch</p>
+    <h1>Launch &amp; Boat Scheduler</h1>
+    <p class="sub">Builds a departure board for a shared launch shuttling passengers between the dock and a fleet of boats — first trips out, then rolling exchanges timed to each boat's return.</p>
+  </header>
+
+  <div class="panel">
+    <h2>Parameters</h2>
+    <div class="grid">
+      <div class="field">
+        <label for="startTime">Start time</label>
+        <input type="time" id="startTime" value="09:00">
+      </div>
+      <div class="field">
+        <label for="numBoats">Number of boats</label>
+        <input type="number" id="numBoats" min="1" value="5">
+      </div>
+      <div class="field">
+        <label for="tripDuration">Trip duration (min)</label>
+        <input type="number" id="tripDuration" min="1" value="50">
+      </div>
+      <div class="field">
+        <label for="launchDuration">Launch trip, one way (min)</label>
+        <input type="number" id="launchDuration" min="1" value="10">
+      </div>
+      <div class="field">
+        <label for="rounding">Departure rounding (min)</label>
+        <input type="number" id="rounding" min="0" value="5">
+        <div class="hint">Dock departures round up to the next clean multiple.</div>
+      </div>
+      <div class="field">
+        <label for="paxPerBoat">Passengers per boat</label>
+        <input type="number" id="paxPerBoat" min="1" value="6">
+      </div>
+      <div class="field">
+        <label for="endTime">Operate until</label>
+        <input type="time" id="endTime" value="17:00">
+        <div class="hint">No new sail departures after this time.</div>
+      </div>
+      <div class="field">
+        <label for="numLaunches">Number of launches</label>
+        <input type="number" id="numLaunches" min="1" value="1">
+        <div class="hint">Raise only if more than one launch actually runs.</div>
+      </div>
+      <div class="field">
+        <label for="priorityMode">Priority when tight</label>
+        <select id="priorityMode">
+          <option value="minimizeWait" selected>Minimize on-water wait</option>
+          <option value="fair">Launch every boat</option>
+        </select>
+        <div class="hint">Delay new boats vs. spread capacity across the fleet.</div>
+      </div>
+    </div>
+
+    <button id="runBtn">Generate schedule</button>
+    <button id="copyLinkBtn" class="link-btn">🔗 Copy link for this event</button>
+    <span id="copyFeedback" class="copy-feedback"></span>
+    <div class="hint" style="margin-top:8px;">Updates this tab's address bar to today's settings, so you can press Ctrl+D / Cmd+D right after to bookmark it — no new tab, no pasting. Bookmark one per recurring event (e.g. "Sept Community Sailing Day") so it opens ready-to-go.</div>
+    <div class="errbox" id="errbox"></div>
+  </div>
+
+  <div class="panel" id="results">
+    <h2>Fleet Summary</h2>
+    <div class="summary-row" id="summaryRow"></div>
+
+    <h2 style="margin-top:26px;">Dispatch Board</h2>
+    <div class="filters" id="viewSwitch">
+      <button data-view="timeline" class="active">Timeline</button>
+      <button data-view="log">Launch Rounds</button>
+      <button data-view="boat">By Boat</button>
+    </div>
+
+    <div id="view-timeline" class="view-pane">
+      <div style="overflow-x:auto;">
+        <div id="timelineSvgWrap"></div>
+      </div>
+      <div class="legend" id="timelineLegend"></div>
+    </div>
+
+    <div id="view-log" class="view-pane" style="display:none;">
+      <button id="printLogBtn" class="print-btn">🖨️ Print / Save as PDF</button>
+      <div style="overflow-x:auto;">
+        <table id="logTable">
+          <thead>
+            <tr>
+              <th>Round</th><th>Launch</th><th>Dock Dep.</th><th>Boat</th><th>Dropping off</th><th>Picking up</th><th>Wait (min)</th><th>Dock Arr.</th><th>Next pickup</th>
+            </tr>
+          </thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="view-boat" class="view-pane" style="display:none;">
+      <button id="printBoatBtn" class="print-btn">🖨️ Print / Save as PDF</button>
+      <div class="filters" id="filters"></div>
+      <div style="overflow-x:auto;">
+        <table id="schedTable">
+          <thead>
+            <tr>
+              <th>Boat</th><th>Trip</th><th>Dock Dep.</th><th>Sail Dep.</th><th>Sail Arr.</th><th>Dock Arr.</th><th>Pax</th>
+            </tr>
+          </thead>
+          <tbody id="schedBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="note" id="noteBox"></div>
+  </div>
+
+  <footer class="credit">Greedy single/multi-launch dispatch heuristic — minimizes boat idle time at the rendezvous.</footer>
+</div>
+
+<div id="printArea"></div>
+
+<script>
+
+const palette = ['#d1622f','#2f6b4f','#3a6ea5','#8a5cb0','#b0904a','#4a8a8a','#a5473a','#5a7a3a','#7a5a8a','#3a5a7a','#a56a2f','#5a3a7a'];
+
+function toMin(hhmm){
+  const [h,m] = hhmm.split(':').map(Number);
+  return h*60+m;
+}
+function toHHMM(min){
+  min = Math.round(min);
+  let h = Math.floor(min/60);
+  let m = ((min%60)+60)%60;
+  const dayOverflow = h>=24;
+  h = h%24;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0') + (dayOverflow ? ' (+1d)' : '');
+}
+function roundUp(t, interval){
+  if(!interval || interval<=0) return t;
+  return Math.ceil(t/interval)*interval;
+}
+
+function computeSchedule(p){
+  const { start, end, numBoats, T, L, rounding, pax, numLaunches, priorityMode } = p;
+  const minimizeWait = priorityMode === 'minimizeWait';
+
+  let launchFree = new Array(numLaunches).fill(start);
+
+  // Boats not yet given their first group. Each gets a virtual "ideal" slot spaced
+  // 2L apart (as if the launch did nothing but launch boats back to back), so first
+  // trips compete fairly against later pickups instead of always winning or starving.
+  // (Only used for ordering among initials themselves — see selection logic below.)
+  let pendingInitial = [];
+  for(let i=0;i<numBoats;i++) pendingInitial.push({boat:i, ideal: start + i*2*L});
+
+  // The group currently out on each boat, awaiting pickup. null = boat not running / done.
+  let pendingGroup = new Array(numBoats).fill(null);
+
+  let boatSchedules = Array.from({length:numBoats}, ()=>[]);
+  let launchLog = []; // one entry per launch round trip (dock -> boat -> dock)
+
+  function earliestLaunchIndex(){
+    let idx=0;
+    for(let i=1;i<launchFree.length;i++) if(launchFree[i]<launchFree[idx]) idx=i;
+    return idx;
+  }
+
+  let safety = 0;
+  while(safety++ < 300000){
+    // Anything still pending?
+    const anyPendingGroup = pendingGroup.some(g=>g!==null);
+    if(pendingInitial.length===0 && !anyPendingGroup) break;
+
+    const li = earliestLaunchIndex();
+    const now = launchFree[li];
+
+    let earliestPickupIdeal = Infinity;
+    pendingGroup.forEach(g=>{ if(g!==null) earliestPickupIdeal = Math.min(earliestPickupIdeal, g.sailArr - L); });
+
+    let best = null;
+
+    if(minimizeWait){
+      // Pickups always take precedence — never delay a boat that's already out
+      // in order to start a new one. Only launch a new boat when doing so is
+      // provably safe: it will finish (a full 2L round trip) before the next
+      // known pickup becomes due.
+      if(earliestPickupIdeal <= now && earliestPickupIdeal < Infinity){
+        let bestBoat=-1, bestIdeal=Infinity;
+        pendingGroup.forEach((g,boat)=>{ if(g!==null){ const id=g.sailArr-L; if(id<bestIdeal){bestIdeal=id;bestBoat=boat;} } });
+        best = {kind:'pickup', ideal:bestIdeal, boat:bestBoat};
+      } else if(pendingInitial.length>0 && (now + 2*L <= earliestPickupIdeal)){
+        const it = pendingInitial.reduce((a,b)=> a.ideal<b.ideal?a:b);
+        best = {kind:'initial', idx: pendingInitial.indexOf(it), ideal: it.ideal, boat: it.boat};
+      } else if(earliestPickupIdeal < Infinity){
+        // Nothing safe to do — wait for the pickup that's coming.
+        launchFree[li] = earliestPickupIdeal;
+        continue;
+      } else if(pendingInitial.length>0){
+        const it = pendingInitial.reduce((a,b)=> a.ideal<b.ideal?a:b);
+        best = {kind:'initial', idx: pendingInitial.indexOf(it), ideal: it.ideal, boat: it.boat};
+      } else break;
+    } else {
+      // "Fair" mode: earliest-ideal-time-first across both pending first trips
+      // and pending pickups, so first trips aren't starved indefinitely.
+      pendingInitial.forEach((it, idx)=>{
+        if(best===null || it.ideal < best.ideal){
+          best = {kind:'initial', idx, ideal: it.ideal, boat: it.boat};
+        }
+      });
+      pendingGroup.forEach((g, boat)=>{
+        if(g===null) return;
+        const ideal = g.sailArr - L;
+        if(best===null || ideal < best.ideal){
+          best = {kind:'pickup', ideal, boat};
+        }
+      });
+    }
+
+    let idealDep = best.kind==='pickup' ? Math.max(now, best.ideal) : now;
+    let dep = roundUp(idealDep, rounding);
+
+    if(best.kind==='initial'){
+      if(dep > end){
+        // Too late to bother starting this boat at all — drop it and keep this
+        // launch available at the same time for whatever comes next.
+        pendingInitial.splice(best.idx,1);
+        continue;
+      }
+      pendingInitial.splice(best.idx,1);
+      const boat = best.boat;
+      const sailDep = dep + L;
+      const sailArr = sailDep + T;
+      const dockArr = dep + 2*L;
+      pendingGroup[boat] = {tripNum:1, dockDep:dep, sailDep, sailArr, pax, first:true};
+      launchLog.push({
+        launchIdx: li, boat, dockDep: dep, dockArr,
+        outbound: {tripNum:1, pax, returnBy: sailArr},
+        inbound: null, waited:false, waitMin:0
+      });
+      launchFree[li] = dockArr; // launch returns empty, nobody to bring back yet
+    } else {
+      const boat = best.boat;
+      const g = pendingGroup[boat];
+      const launchArrivalAtBoat = dep + L;
+      const pickupTime = Math.max(launchArrivalAtBoat, g.sailArr);
+      const waited = launchArrivalAtBoat > g.sailArr; // this group sat waiting for the launch
+      const waitMin = waited ? (pickupTime - g.sailArr) : 0;
+      const dockArr = pickupTime + L;
+
+      // Decide whether to also send a fresh group out on this same run (normal
+      // exchange) or whether this is just a closing pickup because we're past
+      // the operating window and shouldn't start a new voyage.
+      const continueOperating = dep <= end;
+
+      boatSchedules[boat].push({
+        tripNum: g.tripNum, dockDep: g.dockDep, sailDep: g.sailDep, sailArr: g.sailArr,
+        dockArr, pax, first: g.first, waited, closing: !continueOperating
+      });
+
+      let outbound = null;
+      if(continueOperating){
+        const sailDep = pickupTime; // boat departs again right after the swap
+        const sailArr = sailDep + T;
+        pendingGroup[boat] = {tripNum: g.tripNum+1, dockDep: dep, sailDep, sailArr, pax, first:false};
+        outbound = {tripNum: g.tripNum+1, pax, returnBy: sailArr};
+      } else {
+        pendingGroup[boat] = null;
+      }
+
+      launchLog.push({
+        launchIdx: li, boat, dockDep: dep, dockArr,
+        outbound, inbound: {tripNum: g.tripNum, pax}, waited, waitMin
+      });
+      launchFree[li] = dockArr;
+    }
+  }
+
+  return { boatSchedules, launchLog };
+}
+
+function readParams(){
+  const start = toMin(document.getElementById('startTime').value || '09:00');
+  let end = toMin(document.getElementById('endTime').value || '17:00');
+  if(end <= start) end += 24*60;
+  const numBoats = parseInt(document.getElementById('numBoats').value,10);
+  const T = parseFloat(document.getElementById('tripDuration').value);
+  const L = parseFloat(document.getElementById('launchDuration').value);
+  const rounding = parseFloat(document.getElementById('rounding').value);
+  const pax = parseInt(document.getElementById('paxPerBoat').value,10);
+  const numLaunches = parseInt(document.getElementById('numLaunches').value,10) || 1;
+  const priorityMode = document.getElementById('priorityMode').value || 'minimizeWait';
+  return {start,end,numBoats,T,L,rounding,pax,numLaunches,priorityMode};
+}
+
+function validate(p){
+  const errs=[];
+  if(!p.numBoats || p.numBoats<1) errs.push('Number of boats must be at least 1.');
+  if(!p.T || p.T<=0) errs.push('Trip duration must be greater than 0.');
+  if(!p.L || p.L<=0) errs.push('Launch trip duration must be greater than 0.');
+  if(p.rounding<0) errs.push('Rounding cannot be negative.');
+  if(!p.pax || p.pax<1) errs.push('Passengers per boat must be at least 1.');
+  if(p.numLaunches<1) errs.push('Number of launches must be at least 1.');
+  if(p.end - p.start < p.L*2 + 5) errs.push('Operating window is too short to complete even one trip.');
+  return errs;
+}
+
+let currentSchedules = null;
+let currentLaunchLog = null;
+let currentParams = null;
+let selectedBoats = new Set(); // indices of boats currently checked in the By Boat filter
+let currentView = 'timeline';
+
+// Field ids <-> short query-string keys, for shareable per-event links.
+const FIELD_QS_MAP = {
+  startTime:'start', endTime:'end', numBoats:'boats', tripDuration:'trip',
+  launchDuration:'launch', rounding:'round', paxPerBoat:'pax',
+  numLaunches:'launches', priorityMode:'priority'
+};
+
+function generateSchedule(){
+  const p = readParams();
+  const errbox = document.getElementById('errbox');
+  const errs = validate(p);
+  if(errs.length){
+    errbox.style.display='block';
+    errbox.textContent = errs.join(' ');
+    document.getElementById('results').style.display='none';
+    return false;
+  }
+  errbox.style.display='none';
+
+  const result = computeSchedule(p);
+  currentSchedules = result.boatSchedules;
+  currentLaunchLog = result.launchLog;
+  currentParams = p;
+  selectedBoats = new Set(result.boatSchedules.map((_, i) => i));
+  currentView = 'timeline';
+  renderResults(p);
+  return true;
+}
+
+function applyParamsFromURL(){
+  const qs = new URLSearchParams(window.location.search);
+  let any = false;
+  Object.entries(FIELD_QS_MAP).forEach(([fieldId, qsKey])=>{
+    if(qs.has(qsKey)){
+      const el = document.getElementById(fieldId);
+      if(el){ el.value = qs.get(qsKey); any = true; }
+    }
+  });
+  return any;
+}
+
+function buildEventLink(){
+  const qs = new URLSearchParams();
+  Object.entries(FIELD_QS_MAP).forEach(([fieldId, qsKey])=>{
+    const el = document.getElementById(fieldId);
+    if(el) qs.set(qsKey, el.value);
+  });
+  const url = new URL(window.location.href);
+  url.search = qs.toString();
+  return url.toString();
+}
+
+document.getElementById('runBtn').addEventListener('click', generateSchedule);
+
+document.getElementById('copyLinkBtn').addEventListener('click', async ()=>{
+  const link = buildEventLink();
+  const feedback = document.getElementById('copyFeedback');
+
+  // Update this tab's own address bar to the event link (no reload), so the
+  // person can bookmark the current tab immediately — no new tab, no pasting.
+  try{ window.history.pushState({}, '', link); }catch(e){ /* ignore */ }
+
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC')>=0;
+  const shortcut = isMac ? 'Cmd+D' : 'Ctrl+D';
+
+  try{
+    await navigator.clipboard.writeText(link);
+    feedback.textContent = `Address bar updated — press ${shortcut} to bookmark this event (link also copied)`;
+  }catch(e){
+    feedback.textContent = `Address bar updated — press ${shortcut} to bookmark this event`;
+  }
+  feedback.classList.add('show');
+  clearTimeout(window.__copyFeedbackTimer);
+  window.__copyFeedbackTimer = setTimeout(()=> feedback.classList.remove('show'), 6000);
+});
+
+// If the page was opened with event parameters in the URL, load them and
+// generate the schedule immediately so a bookmarked link is ready-to-go.
+if(applyParamsFromURL()){
+  generateSchedule();
+}
+
+document.getElementById('viewSwitch').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-view]');
+  if(!btn) return;
+  document.querySelectorAll('#viewSwitch button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentView = btn.getAttribute('data-view');
+  document.getElementById('view-timeline').style.display = currentView==='timeline' ? '' : 'none';
+  document.getElementById('view-log').style.display = currentView==='log' ? '' : 'none';
+  document.getElementById('view-boat').style.display = currentView==='boat' ? '' : 'none';
+});
+
+function renderResults(p){
+  const results = document.getElementById('results');
+  results.style.display='block';
+
+  // summary
+  let totalTrips=0, launchBusyMin=0, anyWaited=false;
+  currentSchedules.forEach(s=> {
+    totalTrips += s.length;
+    s.forEach(t=>{ launchBusyMin += (t.dockArr - t.dockDep); if(t.waited) anyWaited=true; });
+  });
+  const totalPax = totalTrips * p.pax;
+  const boatsRun = currentSchedules.filter(s=>s.length>0).length;
+  const windowMin = p.end - p.start;
+  const utilPct = Math.min(100, Math.round(100 * launchBusyMin / (p.numLaunches * windowMin)));
+
+  document.getElementById('summaryRow').innerHTML = `
+    <div class="stat"><div class="n">${totalTrips}</div><div class="l">Total trips</div></div>
+    <div class="stat"><div class="n">${totalPax}</div><div class="l">Total passengers carried</div></div>
+    <div class="stat"><div class="n">${boatsRun}/${p.numBoats}</div><div class="l">Boats in service</div></div>
+    <div class="stat"><div class="n">${utilPct}%</div><div class="l">Launch${p.numLaunches>1?'es':''} utilization</div></div>
+  `;
+  window.__capacityFlag = anyWaited;
+
+  // filters — each boat toggles independently; "All boats" is a select-all/none shortcut
+  const filtersDiv = document.getElementById('filters');
+  let filterHtml = `<button data-boat="all">All boats</button>`;
+  for(let i=0;i<currentSchedules.length;i++){
+    filterHtml += `<button data-boat="${i}"><span class="boat-tag" style="background:${palette[i%palette.length]}"></span>Boat ${i+1}</button>`;
+  }
+  filtersDiv.innerHTML = filterHtml;
+
+  function syncFilterButtons(){
+    filtersDiv.querySelectorAll('button[data-boat]').forEach(b=>{
+      const val = b.getAttribute('data-boat');
+      const active = val==='all'
+        ? selectedBoats.size === currentSchedules.length
+        : selectedBoats.has(Number(val));
+      b.classList.toggle('active', active);
+    });
+  }
+
+  filtersDiv.querySelectorAll('button[data-boat]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const val = btn.getAttribute('data-boat');
+      if(val==='all'){
+        selectedBoats = selectedBoats.size === currentSchedules.length
+          ? new Set()
+          : new Set(currentSchedules.map((_,i)=>i));
+      } else {
+        const idx = Number(val);
+        if(selectedBoats.has(idx)) selectedBoats.delete(idx); else selectedBoats.add(idx);
+      }
+      syncFilterButtons();
+      renderTable();
+    });
+  });
+  syncFilterButtons();
+
+  renderTable();
+  renderLog();
+  renderTimeline(p);
+
+  const capacityNote = window.__capacityFlag
+    ? `<br><br><b>Capacity note:</b> with ${p.numLaunches} launch${p.numLaunches>1?'es':''} at ${p.L}′ each way, keeping one boat in continuous rotation costs ${p.L*2}′ of launch time per ${p.T}′ trip. This fleet's demand exceeds that supply. ${p.priorityMode==='minimizeWait'
+        ? `Running in <b>minimize on-water wait</b> mode, so the launch holds off starting boats it can't safely get to rather than making an already-sailing boat's crew wait — if boats below show 0 trips, that's the launch protecting on-water crews rather than a scheduling gap.`
+        : `Running in <b>launch every boat</b> mode, so trip cycles have stretched out and some groups wait on the launch (flagged <span class="flag wait">wait</span>) instead — that's the schedule settling into a stable, shared rhythm, not an error.`}
+       To close the gap: add a launch, shorten the launch leg, lengthen the trip, or run fewer boats at once.`
+    : '';
+
+  document.getElementById('noteBox').innerHTML = `
+    <b>How this schedule is built:</b> each row follows one passenger group door-to-door — dock departure, +${p.L}′ out to the boat, +${p.T}′ sailing, and a Dock Arrival that's <i>that same group's</i> actual return. Once a group is dropped off, the launch either turns around empty (first trips) or waits for a boat to arrive so it can hand off the next group and bring the previous one home in the same run. A row marked <span class="flag closing">closing pickup</span> is the boat's last group of the day — no new group was waiting to go out, so the launch made a dedicated trip just to bring them back; that run still costs launch time and can push against other boats' schedules. Dock departures round up to the nearest ${p.rounding||0}′. No new voyage starts after ${toHHMM(p.end)}, but every group already at sea is still retrieved, even if that pickup happens past that time.${capacityNote}
+  `;
+}
+
+function renderTable(){
+  const tbody = document.getElementById('schedBody');
+  let rows = [];
+  currentSchedules.forEach((sched, boatIdx)=>{
+    if(!selectedBoats.has(boatIdx)) return;
+    sched.forEach(trip=>{
+      rows.push({boatIdx, ...trip});
+    });
+  });
+  rows.sort((a,b)=> a.dockDep - b.dockDep || a.boatIdx - b.boatIdx);
+
+  tbody.innerHTML = rows.map(r=>{
+    const color = palette[r.boatIdx % palette.length];
+    const flags = (r.first ? '<span class="flag first">first</span>' : '')
+      + (r.waited ? '<span class="flag wait">wait</span>' : '')
+      + (r.closing ? '<span class="flag closing">closing pickup</span>' : '');
+    return `<tr>
+      <td><span class="boat-tag" style="background:${color}"></span>Boat ${r.boatIdx+1}</td>
+      <td>${r.tripNum}</td>
+      <td class="dep">${toHHMM(r.dockDep)}</td>
+      <td>${toHHMM(r.sailDep)}</td>
+      <td>${toHHMM(r.sailArr)}</td>
+      <td class="arr">${toHHMM(r.dockArr)}${flags}</td>
+      <td>${r.pax}</td>
+    </tr>`;
+  }).join('');
+
+  if(rows.length===0){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--mute);padding:20px;">No trips scheduled in this window.</td></tr>`;
+  }
+}
+
+function renderLog(){
+  const tbody = document.getElementById('logBody');
+  const rows = [...currentLaunchLog].sort((a,b)=> a.dockDep - b.dockDep || a.launchIdx - b.launchIdx);
+
+  tbody.innerHTML = rows.map((r, i)=>{
+    const color = palette[r.boat % palette.length];
+    const dropCell = r.outbound
+      ? `Boat ${r.boat+1} · trip ${r.outbound.tripNum}`
+      : `<span style="color:var(--mute)">— none, closing pickup —</span>`;
+    const pickCell = r.inbound
+      ? `Boat ${r.boat+1} · trip ${r.inbound.tripNum}`
+      : `<span style="color:var(--mute)">— none, first run —</span>`;
+    const waitCell = r.inbound
+      ? (r.waitMin>0 ? `<b style="color:var(--warn)">${Math.round(r.waitMin)}</b>` : `0`)
+      : `<span style="color:var(--mute)">—</span>`;
+    const nextPickupCell = r.outbound
+      ? `<b>${toHHMM(r.outbound.returnBy)}</b>`
+      : `<span style="color:var(--mute)">—</span>`;
+    return `<tr>
+      <td>${i+1}</td>
+      <td>Launch ${r.launchIdx+1}</td>
+      <td class="dep">${toHHMM(r.dockDep)}</td>
+      <td><span class="boat-tag" style="background:${color}"></span>Boat ${r.boat+1}</td>
+      <td>${dropCell}</td>
+      <td>${pickCell}</td>
+      <td>${waitCell}</td>
+      <td class="arr">${toHHMM(r.dockArr)}</td>
+      <td>${nextPickupCell}</td>
+    </tr>`;
+  }).join('');
+
+  if(rows.length===0){
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--mute);padding:20px;">No launch rounds in this window.</td></tr>`;
+  }
+}
+
+document.getElementById('printLogBtn').addEventListener('click', ()=>{
+  const p = currentParams;
+  const rows = [...currentLaunchLog].sort((a,b)=> a.dockDep - b.dockDep || a.launchIdx - b.launchIdx);
+
+  const generatedAt = new Date().toLocaleString([], {dateStyle:'medium', timeStyle:'short'});
+
+  const bodyRows = rows.map((r,i)=>{
+    const color = palette[r.boat % palette.length];
+    const boatCode = `B${r.boat+1}`;
+    const dropCell = r.outbound ? `Trip ${r.outbound.tripNum}` : '— closing pickup —';
+    const pickCell = r.inbound ? `Trip ${r.inbound.tripNum}` : '— first run —';
+    const exchangeTimeCell = toHHMM(r.dockArr - p.L); // time of the swap at the boat
+    return `<tr>
+      <td>${i+1}</td>
+      <td>Launch ${r.launchIdx+1}</td>
+      <td>${toHHMM(r.dockDep)}</td>
+      <td><span class="dot" style="background:${color}"></span>${boatCode}</td>
+      <td class="name-blank"></td>
+      <td>${dropCell}</td>
+      <td>${exchangeTimeCell}</td>
+      <td>${pickCell}</td>
+      <td>${toHHMM(r.dockArr)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('printArea').innerHTML = `
+    <h1>Launch Dispatch Schedule</h1>
+    <div class="meta">
+      <b>Operating window:</b> ${toHHMM(p.start)}–${toHHMM(p.end)} &nbsp; | &nbsp;
+      <b>Boats:</b> ${p.numBoats} &nbsp; | &nbsp;
+      <b>Launches:</b> ${p.numLaunches} &nbsp; | &nbsp;
+      <b>Trip duration:</b> ${p.T}′ &nbsp; | &nbsp;
+      <b>Launch leg:</b> ${p.L}′ each way &nbsp; | &nbsp;
+      <b>Pax/boat:</b> ${p.pax}<br>
+      <b>Priority:</b> ${p.priorityMode==='minimizeWait' ? 'Minimize on-water wait' : 'Launch every boat when possible'}
+    </div>
+    <table>
+      <thead>
+        <tr><th>Round</th><th>Launch</th><th>Dock Dep.</th><th>Boat Code</th><th>Boat Name</th><th>Dropping Off</th><th>Drop Off/Pick Up time</th><th>Picking Up</th><th>Dock Arr.</th></tr>
+      </thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+    <div class="foot">Generated ${generatedAt}</div>
+  `;
+
+  window.print();
+});
+
+document.getElementById('printBoatBtn').addEventListener('click', ()=>{
+  const p = currentParams;
+  const boatIdxs = [...selectedBoats].sort((a,b)=>a-b);
+
+  if(boatIdxs.length===0){
+    alert('Select at least one boat to print.');
+    return;
+  }
+
+  const generatedAt = new Date().toLocaleString([], {dateStyle:'medium', timeStyle:'short'});
+
+  const sections = boatIdxs.map((boatIdx, i)=>{
+    const color = palette[boatIdx % palette.length];
+    const trips = [...currentSchedules[boatIdx]].sort((a,b)=> a.dockDep - b.dockDep);
+
+    const bodyRows = trips.map(t=>{
+      const flags = (t.first ? ' &mdash; first' : '')
+        + (t.waited ? ' &mdash; wait' : '')
+        + (t.closing ? ' &mdash; closing pickup' : '');
+      return `<tr>
+        <td>${t.tripNum}</td>
+        <td>${toHHMM(t.dockDep)}</td>
+        <td>${toHHMM(t.sailDep)}</td>
+        <td>${toHHMM(t.sailArr)}</td>
+        <td>${toHHMM(t.dockArr)}${flags}</td>
+        <td>${t.pax}</td>
+      </tr>`;
+    }).join('');
+
+    const rowsOrEmpty = bodyRows || `<tr><td colspan="6" style="text-align:center;color:#555;">No trips scheduled.</td></tr>`;
+
+    return `
+      <div${i>0 ? ' style="page-break-before:always;"' : ''}>
+        <h1><span class="dot" style="background:${color}"></span>Boat ${boatIdx+1}</h1>
+        <div class="meta">
+          <b>Operating window:</b> ${toHHMM(p.start)}&ndash;${toHHMM(p.end)} &nbsp; | &nbsp;
+          <b>Trip duration:</b> ${p.T}&prime; &nbsp; | &nbsp;
+          <b>Passengers/boat:</b> ${p.pax}
+        </div>
+        <table>
+          <thead>
+            <tr><th>Trip</th><th>Dock Dep.</th><th>Sail Dep.</th><th>Sail Arr.</th><th>Dock Arr.</th><th>Pax</th></tr>
+          </thead>
+          <tbody>${rowsOrEmpty}</tbody>
+        </table>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('printArea').innerHTML = `
+    ${sections}
+    <div class="foot">Generated ${generatedAt}</div>
+  `;
+
+  window.print();
+});
+
+function renderTimeline(p){
+  const wrap = document.getElementById('timelineSvgWrap');
+  const legend = document.getElementById('timelineLegend');
+
+  const numLaunches = p.numLaunches;
+  const numBoats = currentSchedules.length;
+
+  // Determine time range actually used
+  let minT = p.start, maxT = p.end;
+  currentLaunchLog.forEach(r=>{ minT=Math.min(minT,r.dockDep); maxT=Math.max(maxT,r.dockArr); });
+  currentSchedules.forEach(s=> s.forEach(t=>{ maxT=Math.max(maxT,t.dockArr); }));
+  minT = Math.floor(minT/30)*30;
+  maxT = Math.ceil(maxT/30)*30;
+
+  const pxPerMin = 3.6;
+  const chartW = (maxT-minT)*pxPerMin;
+  const labelW = 92;
+  const rowH = 32;
+  const headerH = 28;
+  const totalLanes = numLaunches + numBoats;
+  const svgW = labelW + chartW + 20;
+  const svgH = headerH + totalLanes*rowH + 10;
+
+  function x(t){ return labelW + (t-minT)*pxPerMin; }
+
+  let svg = `<svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">`;
+  svg += `<defs>
+    <pattern id="waitHatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <rect width="6" height="6" fill="#ffffff" fill-opacity="0"/>
+      <line x1="0" y1="0" x2="0" y2="6" stroke="#ffffff" stroke-width="2" stroke-opacity="0.7"/>
+    </pattern>
+  </defs>`;
+
+  // vertical hour gridlines
+  svg += `<g>`;
+  for(let t = Math.ceil(minT/60)*60; t<=maxT; t+=60){
+    svg += `<line x1="${x(t)}" y1="${headerH}" x2="${x(t)}" y2="${svgH-6}" stroke="#d8cdb8" stroke-width="1"/>`;
+    svg += `<text class="tl-axis-label" x="${x(t)+3}" y="${headerH-9}">${toHHMM(t)}</text>`;
+  }
+  svg += `</g>`;
+
+  // lane background stripes + labels
+  for(let i=0;i<totalLanes;i++){
+    const y = headerH + i*rowH;
+    if(i%2===1) svg += `<rect x="0" y="${y}" width="${svgW}" height="${rowH}" fill="#00000006"/>`;
+    let label, dotColor=null;
+    if(i<numLaunches){ label = numLaunches>1 ? `Launch ${i+1}` : 'Launch'; }
+    else { const b=i-numLaunches; label = `Boat ${b+1}`; dotColor = palette[b%palette.length]; }
+    if(dotColor) svg += `<circle cx="10" cy="${y+rowH/2}" r="4" fill="${dotColor}"/>`;
+    svg += `<text class="tl-lane-label" x="${dotColor?20:6}" y="${y+rowH/2+4}">${label}</text>`;
+  }
+  // horizontal separator between launch lanes and boat lanes
+  svg += `<line x1="0" y1="${headerH+numLaunches*rowH}" x2="${svgW}" y2="${headerH+numLaunches*rowH}" stroke="#b8a985" stroke-width="1.5"/>`;
+
+  const barH = 16;
+
+  // launch bars
+  currentLaunchLog.forEach((r, i)=>{
+    const laneY = headerH + r.launchIdx*rowH + (rowH-barH)/2;
+    const color = palette[r.boat % palette.length];
+    const outEnd = r.dockDep + p.L;
+    const backStart = r.dockArr - p.L;
+    // outbound leg
+    svg += `<rect x="${x(r.dockDep)}" y="${laneY}" width="${Math.max(1,x(outEnd)-x(r.dockDep))}" height="${barH}" rx="3" fill="${color}"/>`;
+    // dwell (if any) - launch sitting idle at the rendezvous, waiting for the boat. Plain fill.
+    if(backStart > outEnd){
+      const dwellX = x(outEnd), dwellW = Math.max(0,x(backStart)-x(outEnd));
+      svg += `<rect x="${dwellX}" y="${laneY}" width="${dwellW}" height="${barH}" rx="2" fill="${color}" opacity="0.4"/>`;
+    }
+    // return leg
+    svg += `<rect x="${x(backStart)}" y="${laneY}" width="${Math.max(1,x(r.dockArr)-x(backStart))}" height="${barH}" rx="3" fill="${color}"/>`;
+    // round label
+    const midX = (x(r.dockDep)+x(r.dockArr))/2;
+    if(x(r.dockArr)-x(r.dockDep) > 24){
+      svg += `<text class="tl-round-label" x="${midX}" y="${laneY+barH/2+3}" text-anchor="middle">B${r.boat+1}</text>`;
+    }
+  });
+
+  // boat bars
+  currentSchedules.forEach((sched, boatIdx)=>{
+    const laneY = headerH + (numLaunches+boatIdx)*rowH + (rowH-barH)/2;
+    const color = palette[boatIdx % palette.length];
+    sched.forEach(t=>{
+      svg += `<rect x="${x(t.sailDep)}" y="${laneY}" width="${Math.max(1,x(t.sailArr)-x(t.sailDep))}" height="${barH}" rx="3" fill="${color}"/>`;
+      if(t.waited){
+        const pickupTime = t.dockArr - p.L;
+        const wx = x(t.sailArr), ww = Math.max(1,x(pickupTime)-x(t.sailArr));
+        svg += `<rect x="${wx}" y="${laneY}" width="${ww}" height="${barH}" rx="3" fill="${color}"/>`;
+        svg += `<rect x="${wx}" y="${laneY}" width="${ww}" height="${barH}" rx="3" fill="url(#waitHatch)"/>`;
+      }
+      if(x(t.sailArr)-x(t.sailDep) > 20){
+        svg += `<text class="tl-round-label" x="${(x(t.sailDep)+x(t.sailArr))/2}" y="${laneY+barH/2+3}" text-anchor="middle" fill="#fff">#${t.tripNum}</text>`;
+      }
+    });
+  });
+
+  svg += `</svg>`;
+  wrap.innerHTML = svg;
+
+  legend.innerHTML = `
+    <span><span class="sw" style="background:${palette[0]};"></span>Solid bar = launch transit / boat sailing</span>
+    <span><span class="sw" style="background:${palette[0]};opacity:.4;"></span>Plain, faded bar = launch idle, waiting at the rendezvous for a boat</span>
+    <span><span class="sw" style="background:${palette[0]};background-image:repeating-linear-gradient(45deg,#fff 0,#fff 1.5px,transparent 1.5px,transparent 4px);"></span>Fine stripes = boat idle, crew waiting to be picked up</span>
+    <span>Color = boat identity (matches lane dot)</span>
+  `;
+}
+</script>
+</body>
+</html>
