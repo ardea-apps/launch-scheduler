@@ -106,8 +106,8 @@ Sailing Day," "Regatta Day") with that event's fixed parameters.
 
 ## Hosting
 
-See the [tools folder README](../README.md) for hosting conventions shared across
-all tools. In short: it's a static file, host it anywhere, no server logic needed.
+It's a single static file with no server logic: upload it via FTP to
+`bluehorizonsailing.org/tools/launch-scheduler/` or host it anywhere else.
 
 ## Browser support
 
