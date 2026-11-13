@@ -46,7 +46,7 @@ the person planning the day and the person driving the launch can see the same p
 
 ## Quick start
 
-Open `launch_scheduler.html` in any modern browser — locally, or hosted anywhere
+Open `launch-scheduler.html` in any modern browser — locally, or hosted anywhere
 that can serve a static file (no server-side logic required).
 
 1. Fill in the parameters (start time, number of boats, trip duration, launch leg
@@ -97,7 +97,7 @@ specific recurring event, click **🔗 Copy link for this event**, then bookmark
 tab (Ctrl+D / Cmd+D). The event's settings are encoded directly in the URL, e.g.:
 
 ```
-launch_scheduler.html?start=11:00&end=15:00&boats=3&trip=50&launch=10&round=5&pax=6&launches=1&priority=minimizeWait
+launch-scheduler.html?start=11:00&end=15:00&boats=3&trip=50&launch=10&round=5&pax=6&launches=1&priority=minimizeWait
 ```
 
 Opening a link like this auto-fills every field and generates the schedule
